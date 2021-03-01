@@ -55,11 +55,13 @@ class ActivityController: UITableViewController {
     refreshControl.tintColor = UIColor.darkGray
     refreshControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
     refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
-
-    refresh()
     
     let eventsArray = (NSArray(contentsOf: eventsFileURL) as? [[String:Any]] ?? [])
     events.value = eventsArray.flatMap(Event.init)
+
+    lastModified.value = try? NSString(contentsOf:modifiedFileURL, usedEncoding: nil)
+    refresh()
+
   }
 
   @objc func refresh() {
