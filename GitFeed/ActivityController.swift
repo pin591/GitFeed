@@ -57,6 +57,9 @@ class ActivityController: UITableViewController {
     refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
 
     refresh()
+    
+    let eventsArray = (NSArray(contentsOf: eventsFileURL) as? [[String:Any]] ?? [])
+    events.value = eventsArray.flatMap(Event.init)
   }
 
   @objc func refresh() {
@@ -114,6 +117,9 @@ class ActivityController: UITableViewController {
       self.tableView.reloadData()
       self.refreshControl?.endRefreshing()
     }
+    
+    let eventArray = updatedEvents.map {$0.dictionary} as NSArray
+    eventArray.write(to: eventsFileURL, atomically: true)
     
   }
 
