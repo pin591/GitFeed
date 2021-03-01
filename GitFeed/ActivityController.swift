@@ -67,7 +67,38 @@ class ActivityController: UITableViewController {
   }
 
   func fetchEvents(repo: String) {
-
+    
+    let response = Observable.from([repo])
+        .map { repo in
+            let url = URL(string: "https://api.github.com/repos/\(repo)/events")!
+            return URLRequest(url: url)
+        }
+        .flatMap { request -> Observable<(response: HTTPURLResponse, data: Data)> in
+            return URLSession.shared.rx.response(request: request)
+        }
+        .share(replay: 1, scope: .whileConnected)
+    
+    response
+        .filter { response, _ in
+            return 200..<300 ~= response.statusCode
+        }
+        .map { _, data-> [[String:Any]] in
+            guard let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+            let result = jsonObject as? [[String:Any]] else {
+                return []
+            }
+            return result
+        }
+        .filter { objects in
+            objects.count > 0
+        }
+        .map { objects in
+            objects.flatMap(Event.init)
+        }
+        .subscribe(onNext: { [weak self] newEvents in
+            self?.processEvents(newEvents)
+        })
+        .disposed(by: bag)
   }
   
   func processEvents(_ newEvents: [Event]) {
