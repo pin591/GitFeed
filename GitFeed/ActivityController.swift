@@ -76,8 +76,15 @@ class ActivityController: UITableViewController {
     let response = Observable.from([repo])
         .map { repo in
             let url = URL(string: "https://api.github.com/repos/\(repo)/events")!
-            return URLRequest(url: url)
+            
+            var request = URLRequest(url: url)
+            if let modifiedHeader = self.lastModified.value {
+                request.addValue(modifiedHeader as String, forHTTPHeaderField: "Last-Modified")
+            }
+            
+            return request
         }
+   
         .flatMap { request -> Observable<(response: HTTPURLResponse, data: Data)> in
             return URLSession.shared.rx.response(request: request)
         }
@@ -102,6 +109,25 @@ class ActivityController: UITableViewController {
         }
         .subscribe(onNext: { [weak self] newEvents in
             self?.processEvents(newEvents)
+        })
+        .disposed(by: bag)
+    
+    response
+        .filter { response, _ in
+            return 200..<400 ~= response.statusCode
+            
+        }
+        .flatMap { response, _ -> Observable<NSString> in
+            
+            guard let value = response.allHeaderFields["Last-Modified"] as? NSString else {
+                return Observable.empty()
+            }
+            return Observable.just(value)
+        }
+        .subscribe(onNext: { [weak self] modifiedHeader in
+            guard let `self` = self else { return }
+            self.lastModified.value = modifiedHeader
+            try? modifiedHeader.write(to: self.modifiedFileURL, atomically: true, encoding: String.Encoding.utf8.rawValue)
         })
         .disposed(by: bag)
   }
